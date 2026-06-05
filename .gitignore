@@ -10,3 +10,4 @@ pnpm-debug.log*
 
 # local env files
 .vscode/
+.vercel
