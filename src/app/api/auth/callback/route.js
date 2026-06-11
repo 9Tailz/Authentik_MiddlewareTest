@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   const tokenUrl = process.env.AUTHENTIK_TOKEN_URL;
   const clientId = process.env.AUTHENTIK_CLIENT_ID;
   const clientSecret = process.env.AUTHENTIK_CLIENT_SECRET;
-  const redirectUri = process.env.AUTHENTIK_REDIRECT_URI;
+  const envRedirectUri = process.env.AUTHENTIK_REDIRECT_URI;
+  const runtimeRedirectUri = `${request.nextUrl.origin}/api/auth/callback`;
+  const redirectUri = envRedirectUri && new URL(envRedirectUri).origin === request.nextUrl.origin
+    ? envRedirectUri
+    : runtimeRedirectUri;
 
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -15,17 +19,26 @@ export async function GET(request) {
     tokenUrl: !!tokenUrl,
     clientId: !!clientId,
     clientSecret: !!clientSecret,
-    redirectUri: !!redirectUri,
+    envRedirectUri: !!envRedirectUri,
+    runtimeRedirectUri,
+    redirectUri,
   });
 
-  if (!tokenUrl || !clientId || !clientSecret || !redirectUri) {
+  if (!tokenUrl || !clientId || !clientSecret) {
     console.error('[auth/callback] missing Authentik config', {
       tokenUrl: !!tokenUrl,
       clientId: !!clientId,
       clientSecret: !!clientSecret,
-      redirectUri: !!redirectUri,
+      envRedirectUri: !!envRedirectUri,
     });
     return new NextResponse('Missing Authentik configuration', { status: 500 });
+  }
+
+  if (envRedirectUri && redirectUri !== envRedirectUri) {
+    console.warn('[auth/callback] using runtime redirect URI instead of env redirect URI', {
+      envRedirectUri,
+      runtimeRedirectUri,
+    });
   }
 
   if (!code) {

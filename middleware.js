@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+console.log('[middleware init] middleware file loaded');
+
 const PUBLIC_FILE = /\.(.*)$/;
 const AUTH_EXCLUDE_PATHS = [
   '/api/auth/login',
@@ -9,6 +11,7 @@ const AUTH_EXCLUDE_PATHS = [
 ];
 
 export function middleware(request) {
+  console.log('[middleware] INVOKED on', request.nextUrl.pathname);
   const { pathname } = request.nextUrl;
   const authToken = request.cookies.get('auth_token');
   console.log('[middleware] incoming', { pathname, search: request.nextUrl.search, authToken: !!authToken });
@@ -35,5 +38,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/:path*'],
+  matcher: ['/'],
 };

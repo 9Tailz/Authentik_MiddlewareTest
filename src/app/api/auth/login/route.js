@@ -3,23 +3,36 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   const authUrl = process.env.AUTHENTIK_AUTH_URL;
   const clientId = process.env.AUTHENTIK_CLIENT_ID;
-  const redirectUri = process.env.AUTHENTIK_REDIRECT_URI;
+  const envRedirectUri = process.env.AUTHENTIK_REDIRECT_URI;
+  const fallbackRedirectUri = `${request.nextUrl.origin}/api/auth/callback`;
   const redirect = request.nextUrl.searchParams.get('redirect') || '/';
+
+  const redirectUri = envRedirectUri && new URL(envRedirectUri).origin === request.nextUrl.origin
+    ? envRedirectUri
+    : fallbackRedirectUri;
 
   console.log('[auth/login] request', {
     redirect,
     authUrl: !!authUrl,
     clientId: !!clientId,
-    redirectUri: !!redirectUri,
+    envRedirectUri: !!envRedirectUri,
+    redirectUri,
   });
 
-  if (!authUrl || !clientId || !redirectUri) {
+  if (!authUrl || !clientId) {
     console.error('[auth/login] missing Authentik config', {
       authUrl: !!authUrl,
       clientId: !!clientId,
-      redirectUri: !!redirectUri,
+      envRedirectUri: !!envRedirectUri,
     });
     return new NextResponse('Missing Authentik configuration', { status: 500 });
+  }
+
+  if (envRedirectUri && redirectUri !== envRedirectUri) {
+    console.warn('[auth/login] using runtime redirect URI instead of env redirect URI', {
+      envRedirectUri,
+      runtimeRedirectUri: redirectUri,
+    });
   }
 
   const state = Buffer.from(JSON.stringify({ redirect })).toString('base64url');
