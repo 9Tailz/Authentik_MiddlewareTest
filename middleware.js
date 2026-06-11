@@ -10,6 +10,8 @@ const AUTH_EXCLUDE_PATHS = [
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  const authToken = request.cookies.get('auth_token');
+  console.log('[middleware] incoming', { pathname, search: request.nextUrl.search, authToken: !!authToken });
 
   if (
     pathname.startsWith('/_next') ||
@@ -17,16 +19,18 @@ export function middleware(request) {
     PUBLIC_FILE.test(pathname) ||
     AUTH_EXCLUDE_PATHS.some((path) => pathname.startsWith(path))
   ) {
+    console.log('[middleware] public or excluded path, allow', pathname);
     return NextResponse.next();
   }
 
-  const authToken = request.cookies.get('auth_token');
   if (!authToken) {
     const loginUrl = new URL('/api/auth/login', request.url);
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname + request.nextUrl.search);
+    console.log('[middleware] no auth_token cookie, redirecting to', loginUrl.toString());
     return NextResponse.redirect(loginUrl);
   }
 
+  console.log('[middleware] auth_token found, continue to', pathname);
   return NextResponse.next();
 }
 

@@ -9,11 +9,27 @@ export async function GET(request) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
 
+  console.log('[auth/callback] request', {
+    code: !!code,
+    state: !!state,
+    tokenUrl: !!tokenUrl,
+    clientId: !!clientId,
+    clientSecret: !!clientSecret,
+    redirectUri: !!redirectUri,
+  });
+
   if (!tokenUrl || !clientId || !clientSecret || !redirectUri) {
+    console.error('[auth/callback] missing Authentik config', {
+      tokenUrl: !!tokenUrl,
+      clientId: !!clientId,
+      clientSecret: !!clientSecret,
+      redirectUri: !!redirectUri,
+    });
     return new NextResponse('Missing Authentik configuration', { status: 500 });
   }
 
   if (!code) {
+    console.warn('[auth/callback] missing authorization code in callback');
     return new NextResponse('Missing authorization code', { status: 400 });
   }
 
@@ -23,7 +39,7 @@ export async function GET(request) {
       const { redirect: parsedRedirect } = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
       if (parsedRedirect) redirect = parsedRedirect;
     } catch (error) {
-      // ignore invalid state and fallback to /
+      console.warn('[auth/callback] invalid state payload, fallback to /', error);
     }
   }
 
@@ -43,11 +59,20 @@ export async function GET(request) {
 
   if (!tokenResponse.ok) {
     const text = await tokenResponse.text();
+    console.error('[auth/callback] token exchange failed', tokenResponse.status, text);
     return new NextResponse(`Token exchange failed: ${tokenResponse.status} ${text}`, { status: 500 });
   }
 
   const tokenData = await tokenResponse.json();
-  const response = NextResponse.redirect(redirect);
+  console.log('[auth/callback] token exchange succeeded', {
+    redirect,
+    expires_in: tokenData.expires_in,
+    hasAccessToken: !!tokenData.access_token,
+  });
+
+  const redirectUrl = new URL(redirect, request.url).toString();
+  console.log('[auth/callback] redirecting to absolute URL', redirectUrl);
+  const response = NextResponse.redirect(redirectUrl);
   response.cookies.set('auth_token', tokenData.access_token || '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

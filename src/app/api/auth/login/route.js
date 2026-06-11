@@ -6,7 +6,19 @@ export async function GET(request) {
   const redirectUri = process.env.AUTHENTIK_REDIRECT_URI;
   const redirect = request.nextUrl.searchParams.get('redirect') || '/';
 
+  console.log('[auth/login] request', {
+    redirect,
+    authUrl: !!authUrl,
+    clientId: !!clientId,
+    redirectUri: !!redirectUri,
+  });
+
   if (!authUrl || !clientId || !redirectUri) {
+    console.error('[auth/login] missing Authentik config', {
+      authUrl: !!authUrl,
+      clientId: !!clientId,
+      redirectUri: !!redirectUri,
+    });
     return new NextResponse('Missing Authentik configuration', { status: 500 });
   }
 
@@ -18,5 +30,6 @@ export async function GET(request) {
   authorizeUrl.searchParams.set('scope', 'openid profile email');
   authorizeUrl.searchParams.set('state', state);
 
+  console.log('[auth/login] redirecting to Authentik authorize URL', authorizeUrl.toString());
   return NextResponse.redirect(authorizeUrl);
 }
